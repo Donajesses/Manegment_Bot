@@ -1,0 +1,38 @@
+[
+    {
+        "name": "Meeting with Bob",
+        "date": "2025-09-01",
+        "time": "10:00",
+        "description": "Discuss the new project tasks"
+    },
+    {
+        "name": "Gym",
+        "date": "2025-09-01",
+        "time": "18:30",
+        "description": "Leg day workout at the fitness center"
+    },
+    {
+        "name": "Doctor Appointment",
+        "date": "2025-09-02",
+        "time": "14:00",
+        "description": "Routine check-up"
+    },
+    {
+        "name": "Dinner with Alice",
+        "date": "2025-09-03",
+        "time": "19:00",
+        "description": "Birthday dinner at Italian restaurant"
+    },
+    {
+        "name": "Read Book",
+        "date": "2025-09-04",
+        "time": "21:00",
+        "description": "Finish reading 'The Alchemist'"
+    },
+    {
+        "name": "Numbers",
+        "date": "фв",
+        "time": "фв",
+        "description": "фв"
+    }
+]
