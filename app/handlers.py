@@ -1,4 +1,4 @@
-
+import logging
 from datetime import datetime 
 from pathlib import Path
 
@@ -15,23 +15,34 @@ from data import save_event, load_events, save_events, load_sorted_events
 from app.keyboards import events_keyboard, delete_keyboard, sorted_events_keyboard
 
 
+# Налаштування логів
+logging.basicConfig(
+    level=logging.INFO,  
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename="bot.log",  
+    filemode="a"         
+)
+logger = logging.getLogger(__name__)
+
+
+#Необхiднi змiннi  та параметри
 router = Router()
 now = datetime.now()
 BOT_PASSWORD = "1234"
 authorized_users = set()
 
-
-
+#Пароль для бота
 class Auth(StatesGroup):
     waiting_for_password = State()
 
+#класс для нового Iвенту
 class NewEvent(StatesGroup):
     name = State()
     date = State()
     time = State()
     description = State()
 
-
+#змiнювання Iвенту
 class EditEvent(StatesGroup):
     select_event = State()  # выбор события для редактирования
     select_field = State()  # выбор поля для редактирования (name, date, time, description)
@@ -39,42 +50,31 @@ class EditEvent(StatesGroup):
 
 
 #Старт бота
-
-
 @router.message(CommandStart())
 async def start_bot(message: Message, state: FSMContext):
     if message.from_user.id in authorized_users:
-        await message.answer("✅ Ты уже авторизован.", reply_markup=kb.main)
+        await message.answer("✅ You are already autorised.", reply_markup=kb.main)
     else:
-        await message.answer("🔒 Введи пароль для доступа к боту:")
+        await message.answer("🔒 Enter the password to use this Bot:")
         await state.set_state(Auth.waiting_for_password)
 
 
+#Запит пароля при стартi
 @router.message(Auth.waiting_for_password)
 async def check_password(message: Message, state: FSMContext):
     if message.text == BOT_PASSWORD:
         authorized_users.add(message.from_user.id)
-        await message.answer("✅ Пароль верный! Доступ разрешён.", reply_markup=kb.main)
+        await message.answer("✅ Correct password! ", reply_markup=kb.main)
         await state.clear()
     else:
-        await message.answer("❌ Неверный пароль. Попробуй ещё раз.")
+        await message.answer("❌ Wrong password, try again")
 
         
-#рандомна команда
-@router.message(Command("help"))
-async def get_help(message: Message):
-    await message.reply(
-    "This bot can:\n"
-    "New event:\n"
-    "All events:\n"
-    "Delete event:\n"
-    "Filter events:\n"
-    "Current time:"
-    )
 #время сейчас
 @router.message(Command("time"))
 async def get_time(message: Message):
     await message.answer(f"Now is {now.strftime('%H:%M')}")
+
 
 #новый евент
 @router.message(Command("new_event"))
@@ -83,6 +83,7 @@ async def new_event_1(message: Message, state: FSMContext):
     await message.answer("Name of the event:")
 
 
+#питаемо Iм´я
 @router.message(NewEvent.name)
 async def new_event_2(message: Message, state: FSMContext):
     name = message.text.strip()
@@ -95,6 +96,7 @@ async def new_event_2(message: Message, state: FSMContext):
     await message.answer("Date of the event:")
 
 
+#питаемо дату
 @router.message(NewEvent.date)
 async def new_event_3(message: Message, state: FSMContext):
     await state.update_data(date=message.text)
@@ -102,6 +104,7 @@ async def new_event_3(message: Message, state: FSMContext):
     await message.answer("Time of the event:")
 
 
+#питаемо час
 @router.message(NewEvent.time)
 async def new_event_4(message: Message, state: FSMContext):
     await state.update_data(time=message.text)
@@ -109,17 +112,20 @@ async def new_event_4(message: Message, state: FSMContext):
     await message.answer("Description of the event:")
 
 
+# питаемо опис ивенту
 @router.message(NewEvent.description)
 async def new_event_5(message: Message, state: FSMContext):
     await state.update_data(description=message.text)
     data = await state.get_data()
     save_event(data)
-    await message.answer(f"The new event was created! \nName: {data['name']} \n\nDate: {data['date']} \n\nTime: {data['time']} \n\nDescription: {data['description']}")
-
-
+    logger.info(f"New event created by {message.from_user.id}: {data}")
+    await message.answer(
+        f"The new event was created! \nName: {data['name']} \n\nDate: {data['date']} \n\nTime: {data['time']} \n\nDescription: {data['description']}"
+    )
     await state.clear()
 
 
+#виводить всi Iвенти
 @router.message(Command("all_events"))
 async def all_events(message: Message):
     await message.answer(
@@ -128,8 +134,10 @@ async def all_events(message: Message):
     )
 
 
+#виводить всi Iвенти
 @router.callback_query(lambda c: c.data.startswith("event:"))
 async def event_detail(callback: CallbackQuery):
+
     event_name = callback.data.split(":", 1)[1]
     events = load_events()
 
@@ -137,8 +145,11 @@ async def event_detail(callback: CallbackQuery):
         if e["name"] == event_name:
             text = (
                 f"📌 Name: {e['name']}\n"
+
                 f"📅 Date: {e['date']}\n"
+
                 f"⏰ Time: {e['time']}\n"
+
                 f"📝 Description: {e['description']}"
             )
             await callback.message.answer(text)
@@ -147,13 +158,14 @@ async def event_detail(callback: CallbackQuery):
     await callback.answer()
 
 
+#видалення iвенту
 @router.message(F.text == "/delete_event")
 async def delete_event_cmd(message: Message):
     kb = delete_keyboard()
     if kb:
-        await message.answer("Выбери событие для удаления:", reply_markup=kb)
+        await message.answer("Choose the event to delete:", reply_markup=kb)
     else:
-        await message.answer("❌ Нет событий для удаления.")
+        await message.answer("❌ No events to delete.")
 
 
 @router.callback_query(lambda c: c.data.startswith("delete:"))
@@ -162,46 +174,47 @@ async def delete_event(callback: CallbackQuery):
     events = load_events()  # загружаем список
     updated = [e for e in events if e["name"] != event_name]  # удаляем выбранное событие
     save_events(updated)  # сохраняем весь список обратно
-    await callback.message.answer("Событие удалено!")
+    await callback.message.answer("Event was deleted!")
 
 
+#Змiна Iвента
 @router.message(Command("edit_event"))
 async def edit_event_cmd(message: Message):
     events = load_events()
     if not events:
-        await message.answer("❌ Нет событий для редактирования.")
+        await message.answer("❌ No events to edit.")
         return
 
     keyboard = events_keyboard(prefix="edit:")  # кнопки с callback_data "edit:NAME"
-    await message.answer("Выберите событие для редактирования:", reply_markup=keyboard)
+    await message.answer("Choose the event to edit:", reply_markup=keyboard)
 
 
-# Шаг 2: Пользователь выбирает событие через callback
+#вибiр Iвента
 @router.callback_query(lambda c: c.data.startswith("edit:"))
 async def edit_event_callback(callback: CallbackQuery, state: FSMContext):
     event_name = callback.data.split(":", 1)[1]
     await state.update_data(event_name=event_name)
     await state.set_state(EditEvent.select_field)
     await callback.message.answer(
-        f"Вы выбрали событие: {event_name}\n"
-        f"Какое поле хотите изменить? (name, date, time, description)"
+        f"You choosed the event: {event_name}\n"
+        f"What do you want to edit? (name, date, time, description)"
     )
     await callback.answer()
 
 
-# Шаг 3: Пользователь вводит поле, которое хочет изменить
+# що треба змiнити
 @router.message(EditEvent.select_field)
 async def select_field(message: Message, state: FSMContext):
     field = message.text.strip().lower()
     if field not in ["name", "date", "time", "description"]:
-        await message.answer("❌ Неверное поле. Введите: name, date, time или description")
+        await message.answer("❌ Wrong field. Enter: name, date, time or description")
         return
     await state.update_data(field=field)
     await state.set_state(EditEvent.new_value)
-    await message.answer(f"Введите новое значение для {field}:")
+    await message.answer(f"Enter the new value for {field}:")
 
 
-# Шаг 4: Пользователь вводит новое значение
+# Нове значченя для поля
 @router.message(EditEvent.new_value)
 async def set_new_value(message: Message, state: FSMContext):
     data = await state.get_data()
@@ -216,18 +229,19 @@ async def set_new_value(message: Message, state: FSMContext):
             break
 
     save_events(events)
-    await message.answer(f"✅ Событие обновлено: {field} = {new_value}")
+    await message.answer(f"✅ Event was updated: {field} = {new_value}")
     await state.clear()
 
 
+#сортировка всiх iвентiв
 @router.message(Command("sorted_events"))
 async def sorted_events_cmd(message: Message):
     events = load_sorted_events()
     if not events:
-        await message.answer("❌ Событий нет.")
+        await message.answer("❌ No Events.")
         return
 
     await message.answer(
-        "📅 События по дате:",
+        "📅 Date sorted events:",
         reply_markup=sorted_events_keyboard()
     )

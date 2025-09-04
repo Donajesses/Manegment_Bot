@@ -5,6 +5,8 @@ from datetime import datetime
 
 path = Path("data.json")
 
+
+#збереження iвенту
 def save_events(events: list):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(events, f, ensure_ascii=False, indent=4)
@@ -18,6 +20,7 @@ def save_event(event: dict):
     save_events(events)
 
 
+#вивод iвентiв
 def load_events() -> list[dict]:
     if not path.exists() or path.stat().st_size == 0:
         return []
